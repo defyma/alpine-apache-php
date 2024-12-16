@@ -1,0 +1,39 @@
+FROM defyma/alpine-php:8.3
+
+RUN mkdir -p /var/www/html/public
+
+RUN echo 'Updating configurations'
+
+# Change Server Admin, Name, Document Root
+RUN sed -i "s/ServerAdmin\ you@example.com/ServerAdmin\ ${SERVER_ADMIN}/" /etc/apache2/httpd.conf
+RUN sed -i "s/#ServerName\ www.example.com:80/ServerName\ ${HTTP_SERVER_NAME}/" /etc/apache2/httpd.conf
+RUN sed -i 's#^DocumentRoot ".*#DocumentRoot "/var/www/html/public"#g' /etc/apache2/httpd.conf
+RUN sed -i 's#Directory "/var/www/localhost/htdocs"#Directory "/var/www/html/public"#g' /etc/apache2/httpd.conf
+RUN sed -i 's#AllowOverride None#AllowOverride All#' /etc/apache2/httpd.conf
+
+# Change TransferLog after ErrorLog
+RUN sed -i 's#^ErrorLog .*#ErrorLog "/dev/stderr"\nTransferLog "/dev/stdout"#g' /etc/apache2/httpd.conf
+RUN sed -i 's#CustomLog .* combined#CustomLog "/dev/stdout" combined#g' /etc/apache2/httpd.conf
+
+# SSL DocumentRoot and Log locations
+RUN sed -i 's#^ErrorLog .*#ErrorLog "/dev/stderr"#g' /etc/apache2/conf.d/ssl.conf
+RUN sed -i 's#^TransferLog .*#TransferLog "/dev/stdout"#g' /etc/apache2/conf.d/ssl.conf
+RUN sed -i 's#^DocumentRoot ".*#DocumentRoot "/var/www/html/public"#g' /etc/apache2/conf.d/ssl.conf
+RUN sed -i "s/ServerAdmin\ you@example.com/ServerAdmin\ ${SERVER_ADMIN}/" /etc/apache2/conf.d/ssl.conf
+RUN sed -i "s/ServerName\ www.example.com:443/ServerName\ ${HTTPS_SERVER_NAME}/" /etc/apache2/conf.d/ssl.conf
+
+# Re-define LogLevel
+RUN sed -i "s#^LogLevel .*#LogLevel ${LOG_LEVEL}#g" /etc/apache2/httpd.conf
+
+# Enable commonly used apache modules
+RUN sed -i 's/#LoadModule\ rewrite_module/LoadModule\ rewrite_module/' /etc/apache2/httpd.conf
+RUN sed -i 's/#LoadModule\ deflate_module/LoadModule\ deflate_module/' /etc/apache2/httpd.conf
+RUN sed -i 's/#LoadModule\ expires_module/LoadModule\ expires_module/' /etc/apache2/httpd.conf
+
+# Modify php memory limit and timezone
+RUN sed -i "s/memory_limit = .*/memory_limit = ${PHP_MEMORY_LIMIT}/" /etc/php83/php.ini
+RUN sed -i "s#^;date.timezone =\$#date.timezone = \"${TZ}\"#" /etc/php83/php.ini
+
+RUN echo 'Running Apache'
+
+CMD ["httpd", "-D", "FOREGROUND"]
